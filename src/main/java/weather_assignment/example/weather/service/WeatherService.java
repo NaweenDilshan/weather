@@ -1,12 +1,13 @@
 package weather_assignment.example.weather.service;
 
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.http.HttpStatus;
+import reactor.core.publisher.Mono;
+import org.springframework.scheduling.annotation.Async;
 import weather_assignment.example.weather.dto.WeatherSummary;
 
 import java.util.List;
@@ -16,28 +17,35 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class WeatherService {
 
-    private final RestTemplate restTemplate;
-    private final String apiUrl;
-    private final String apiKey;
+    private final WebClient webClient;
+    private final String apiKey; // Declare apiKey as a class field
 
     public WeatherService(@Value("${openweathermap.api.url}") String apiUrl,
                           @Value("${openweathermap.api.key}") String apiKey) {
-        this.restTemplate = new RestTemplate();
-        this.apiUrl = apiUrl;
-        this.apiKey = apiKey;
+        this.webClient = WebClient.builder()
+                .baseUrl(apiUrl)
+                .defaultHeader("Content-Type", "application/json")
+                .build();
+        this.apiKey = apiKey; // Initialize the class field
     }
 
     @Async
     @Cacheable(value = "weatherCache", key = "#cityName", unless = "#result == null")
     public CompletableFuture<WeatherSummary> fetchWeatherDataByCity(String cityName) {
-        String url = String.format("%s?q=%s&appid=%s&units=metric", apiUrl, cityName, apiKey);
-        ResponseEntity<Map> responseEntity = restTemplate.getForEntity(url, Map.class);
-
-        if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null) {
-            return CompletableFuture.completedFuture(parseWeatherResponse(responseEntity.getBody()));
-        } else {
-            throw new RuntimeException("Failed to fetch weather data");
-        }
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .queryParam("q", cityName)
+                        .queryParam("units", "metric")
+                        .queryParam("appid", apiKey)
+                        .build())
+                .retrieve()
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), response -> {
+                    // Handle HTTP error statuses
+                    return Mono.error(new RuntimeException("Error response from API: " + response.statusCode()));
+                })
+                .bodyToMono(Map.class) // Parse the response body as a Map
+                .map(this::parseWeatherResponse) // Convert to WeatherSummary
+                .toFuture(); // Convert Mono<WeatherSummary> to CompletableFuture<WeatherSummary>
     }
 
 
@@ -87,7 +95,6 @@ public class WeatherService {
         return new WeatherSummary(cityName, averageTemp, coldestDay, hottestDay);
     }
 
-    // Helper method to safely convert Object to double
     private double getAsDouble(Object value) {
         if (value instanceof Number) {
             return ((Number) value).doubleValue();
