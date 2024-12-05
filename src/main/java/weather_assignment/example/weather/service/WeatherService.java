@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 public class WeatherService {
 
     private final WebClient webClient;
-    private final String apiKey; // Declare apiKey as a class field
+    private final String apiKey;
 
     public WeatherService(@Value("${openweathermap.api.url}") String apiUrl,
                           @Value("${openweathermap.api.key}") String apiKey) {
@@ -26,7 +26,7 @@ public class WeatherService {
                 .baseUrl(apiUrl)
                 .defaultHeader("Content-Type", "application/json")
                 .build();
-        this.apiKey = apiKey; // Initialize the class field
+        this.apiKey = apiKey;
     }
 
     @Async
@@ -40,12 +40,12 @@ public class WeatherService {
                         .build())
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), response -> {
-                    // Handle HTTP error statuses
+
                     return Mono.error(new RuntimeException("Error response from API: " + response.statusCode()));
                 })
-                .bodyToMono(Map.class) // Parse the response body as a Map
-                .map(this::parseWeatherResponse) // Convert to WeatherSummary
-                .toFuture(); // Convert Mono<WeatherSummary> to CompletableFuture<WeatherSummary>
+                .bodyToMono(Map.class)
+                .map(this::parseWeatherResponse)
+                .toFuture();
     }
 
 
@@ -68,7 +68,7 @@ public class WeatherService {
             Map<String, Object> main = (Map<String, Object>) forecast.get("main");
 
             if (main == null) {
-                continue; // Skip invalid entries
+                continue; // Skip
             }
 
             double temp = getAsDouble(main.get("temp"));
@@ -76,10 +76,10 @@ public class WeatherService {
             double maxTemp = getAsDouble(main.get("temp_max"));
             String date = (String) forecast.get("dt_txt");
 
-            // Calculate total temp for average
+            // Calculate temp average
             totalTemp += temp;
 
-            // Track coldest and hottest day
+            // coldest and hottest day
             if (minTemp < tempMin) {
                 tempMin = minTemp;
                 coldestDay = date;

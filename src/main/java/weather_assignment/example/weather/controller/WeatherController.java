@@ -25,21 +25,18 @@ public class WeatherController {
     public ResponseEntity<WeatherSummary> getWeatherByCity(
             @RequestParam("city") String cityName) {
         try {
-            // Wait for the CompletableFuture to complete and get the result
             WeatherSummary response = weatherService.fetchWeatherDataByCity(cityName).get();
             return ResponseEntity.ok(response);
         } catch (ExecutionException e) {
-            // Handle the case where the asynchronous task fails
-            e.printStackTrace();  // Log the stack trace for debugging
+            e.printStackTrace();
             return ResponseEntity.status(500).body(null);
         } catch (InterruptedException e) {
-            // Handle interruption (e.g., thread was interrupted)
-            Thread.currentThread().interrupt(); // Restore the interrupted status
-            e.printStackTrace();  // Log the stack trace for debugging
+            Thread.currentThread().interrupt();
+            e.printStackTrace();
             return ResponseEntity.status(500).body(null);
         } catch (Exception e) {
             // Catch any other exceptions that might occur
-            e.printStackTrace();  // Log the stack trace for debugging
+            e.printStackTrace();
             return ResponseEntity.status(500).body(null);
         }
     }

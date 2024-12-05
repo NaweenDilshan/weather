@@ -15,7 +15,7 @@ public class CacheConfig {
         cacheManager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(100)
                 .expireAfterWrite(30, java.util.concurrent.TimeUnit.MINUTES));
-        cacheManager.setAsyncCacheMode(true);  // Enable async cache mode
+        cacheManager.setAsyncCacheMode(true);
         return cacheManager;
     }
 }
